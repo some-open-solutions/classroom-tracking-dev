@@ -21,6 +21,9 @@
 <script src="libraries/jquery-3.5.1.min.js"></script>
 <link rel="stylesheet" href="libraries/bootstrap-4.5.0-dist/css/bootstrapCollector.css">
 <script src="libraries/bootstrap-4.5.0-dist/js/bootstrap.min.js"></script>
+<script src="libraries/bootbox.5.4.min.js"></script>
+
+
 <style>
 .submit_response_btn{
   width:100%;
@@ -36,168 +39,46 @@
   height:500;
   display:none;
 }
-#start_quiz_btn{
+#start_message{
   position: absolute;
   top:0;
   bottom: 0;
   left: 0;
   right: 0;
+	text-align: center;
   margin:auto;
-  width:100;
+  width:200px;
   height:50;
 }
 </style>
-<button class="btn btn-primary" id="start_quiz_btn">Start</button>
+<div class="text-primary" id="start_message">Please wait while initialising...</div>
 <div id="response_table"></div>
 
 
 <!-- Chart code -->
 <script>
 
-//need to get all the relevant variables
-function transformToAssocArray( prmstr ) {
-	var params = {};
-	var prmarr = prmstr.split("&");
-	for ( var i = 0; i < prmarr.length; i++) {
-		var tmparr = prmarr[i].split("=");
-		params[tmparr[0]] = tmparr[1];
-	}
-	return params;
-}
-var prmstr = window.location.search.substr(1);
-get_vars = prmstr != null && prmstr != "" ? transformToAssocArray(prmstr) : {};
+//////////////
+//functions //
+//////////////
 
 
-
-//wrap the below into a tidy object at some point.
-
-var participant_code = makeid(10);
-var question_no      = 0;
-
-
-data = {
-  question_id: get_vars.question_sheet,
-  response_id: get_vars.response_sheet,
-  action:      "start_student",
-  participant_code: participant_code,
-  current_response : ""
-};
- 
-$.ajax({
-  type: 'POST',
-  url: get_vars.script_url,
-  data: data,
-  crossDomain: true,
-  timeout: 120000,
-  success:function(response){
-    //as it stands, this will never happen as Collector doesn't allow posts to it.
+//based on solution by csharptest.net at https://stackoverflow.com/questions/1349404/generate-random-string-characters-in-javascript
+function makeid(length) {
+  var result           = '';
+  var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmonpqrstuvwxyz1234567890';
+  var charactersLength = characters.length;
+  for ( var i = 0; i < length; i++ ) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
   }
-})
-.catch(function(error){
-  //read the google sheet
-  ParseGSX.parseGSX(data.question_id,function(result){
-    show_question(result,0);
-  });
-});
-
-
-
-function show_question(result){
-  if(typeof(result[question_no]) == "undefined"){
-    $("#response_table").html("<h1>{{end_message}}</h1>");
-    return;
-  }
-  var this_row         = result[question_no];
-  var question         = this_row.question;
-  var responses        = this_row.responses.split("|");
-  var correct_response = this_row.correct_response;
-  
-  var response_table_html = "<table>" + 
-                              "<tr>" +
-                                "<td><h4>" + question + "</h4><br><br></td>" + 
-                              "</tr>";
-  /*
-  responses.forEach(function(response){
-    response_table_html += "<tr><td><button class='btn btn-primary submit_response_btn'>" + response + "</button></td></tr>";
-  });                  
-  response_table_html += "</table>";
-  */
-  
-  
-  switch(this_row.type){
-    case "choice":
-      responses.forEach(function(response){
-        response_table_html += "<tr><td><button class='btn btn-primary submit_response_btn'>" + response.replace("\n","") + "</button></td></tr>";
-      });
-      break;
-    case "text":
-      response_table_html += "<tr>" +
-                                "<td><input class = 'form-control' type='text' id='single_text_response'></td>" +
-                                "<td><button class='btn btn-primary submit_btn'>Submit</button></td>" +
-                             "</tr>";
-      break;
-      
-  }
-  
-  $("#response_table").show();
-  $("#start_quiz_btn").hide();
-  $("#response_table").html(response_table_html);
-  $(".submit_btn").on("click",function(){
-    question_no++;
-    submit_response($("#single_text_response").val());
-    show_question(result);
-  });
-  $(".submit_response_btn").on("click",function(){
-    data.current_response += this.innerHTML + "; ";
-    if(this_row.answer == "" || this.innerHTML == this_row.answer){
-      question_no++;
-      submit_response(data.current_response);
-      show_question(result);
-      data.current_response = "";
-    } else {
-      bootbox.alert("That is not the correct answer. Please put up your hand to talk to a demonstrator about this question.");
-    }
-  });
+  return result;
 }
 
-function submit_response(response){
-  console.dir(question_no);
-  data = {
-    question_id: "{{question_id}}",
-    response_id: "{{response_id}}",
-    action:      "vote",
-    question_no: question_no,
-    participant_code: participant_code,
-    response: response
-  };
-  $.ajax({
-    type: 'POST',
-    url: "{{script_url}}",
-    data: data,
-    crossDomain: true,
-    timeout: 120000,
-    success:function(result){
-      //as it stands, this will never happen as Collector doesn't allow posts to it.
-    }
-  })
-  .catch(function(error){
-    //read the google sheet 
-    /*
-    ParseGSX.parseGSX(data.question_id,function(result){
-      show_question(result);
-    });
-    */
-  });
-}
-
-
-    
+//from https://github.com/drumwolf/parse-gsx/blob/master/parse-gsx-ajax.js
 var ParseGSX = (function() {
-
   var _defaultCallback = function(data) {
     console.log(data);
   };
-
   var _parseRawData = function(res) {
     var finalData = [];
     res.feed.entry.forEach(function(entry){
@@ -212,29 +93,142 @@ var ParseGSX = (function() {
     var processGSXData = _defaultCallback;
     processGSXData(finalData);
   };
-
   var parseGSX = function(spreadsheetID, callback) {
     var url = "https://spreadsheets.google.com/feeds/list/" + spreadsheetID + "/od6/public/values?alt=json";
     var ajax = $.ajax(url);
     if (callback) { _defaultCallback = callback; }
     $.when(ajax).then(_parseRawData);
   };
-
   return { parseGSX: parseGSX };
-
 })();
 
 
-//based on solution by csharptest.net at https://stackoverflow.com/questions/1349404/generate-random-string-characters-in-javascript
-function makeid(length) {
-   var result           = '';
-   var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmonpqrstuvwxyz1234567890';
-   var charactersLength = characters.length;
-   for ( var i = 0; i < length; i++ ) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-   }
-   return result;
+function show_question(result){
+  if(typeof(result[question_no]) == "undefined"){
+    $("#response_table").html("<h1>You've finished!</h1>"); //this is a failsafe in case 
+    return;
+  }
+  var this_row         = result[question_no];
+  var question         = this_row.question;
+  var responses        = this_row.responses.split("|");
+  var correct_response = this_row.correct_response;
+  
+  var response_table_html = "<table>" + 
+                              "<tr>" +
+                                "<td><h4>" + question + "</h4><br><br></td>" + 
+                              "</tr>";
+  
+  switch(this_row.type){
+    case "choice":
+      responses.forEach(function(response){
+        response_table_html += "<tr><td><button class='btn btn-primary submit_response_btn'>" + response.replace("\n","") + "</button></td></tr>";
+      });
+      break;
+    case "text":
+      response_table_html += "<tr>" +
+                                "<td><input class = 'form-control' type='text' id='single_text_response'></td>" +
+                                "<td><button class='btn btn-primary submit_btn'>Submit</button></td>" +
+                             "</tr>";
+      break;
+  }  
+  
+	$("#response_table").show();
+  $("#start_message").hide();
+  $("#response_table").html(response_table_html);
+  $(".submit_btn").on("click",function(){
+    submit_response($("#single_text_response").val());    
+  });
+  $(".submit_response_btn").on("click",function(){
+		if(typeof(data.current_response) == "undefined"){
+			data.current_response = "";
+		}
+		data.current_response += this.innerHTML + "; ";
+    if(this_row.answer == "" || this.innerHTML == this_row.answer){
+      submit_response(data.current_response);      
+    } else {
+			bootbox.alert("That is not the correct answer. Please put up your hand to talk to a demonstrator about this question.");
+    }
+  });
 }
 
+function submit_response(response){
+	question_no++;
+  console.dir(response);
+  var submit_data = {
+    question_id: 			get_vars.question_sheet,
+    response_id: 			get_vars.response_sheet,
+    action:      			"student_respond",
+    question_no: 			question_no,
+    participant_code: participant_code,
+    response: 				response
+  };
+  $.ajax({
+    type: 'POST',
+    url: get_vars.script_url,
+    data: submit_data,
+    crossDomain: true,
+    timeout: 120000,
+    success:function(result){			
+			show_question(the_question_sheet);
+      data.current_response = "";
+    }
+  })
+  .catch(function(error){
+		bootbox.alert("Error, check the console (or let the teacher know");
+		console.dir(error);    
+  });
+}
 
+///////////
+// Start //
+///////////
+
+// get the GET variables
+// from https://gist.github.com/nacanori/22911cad97708365d1e5073639e38a82
+function transformToAssocArray( prmstr ) {
+	var params = {};
+	var prmarr = prmstr.split("&");
+	for ( var i = 0; i < prmarr.length; i++) {
+		var tmparr = prmarr[i].split("=");
+		params[tmparr[0]] = tmparr[1];
+	}
+	return params;
+}
+var prmstr = window.location.search.substr(1);
+get_vars = prmstr != null && prmstr != "" ? transformToAssocArray(prmstr) : {};
+
+var participant_code = makeid(10);																								// create a consistent participant id
+var question_no      = 0;																													// start on question 0
+
+data = {																																					// data for starting the questions
+  question_id: 			get_vars.question_sheet,																			// spreadsheet where the questions are
+  response_id: 			get_vars.response_sheet,																			// spreadsheet where the responses go
+  action:      			"student_start",																							// student is starting
+  participant_code: participant_code,																							// using the earlier generated code
+  current_response: ""																														// I think this is needed to avoid a crash
+};
+
+var the_question_sheet;
+ 
+$.ajax({																																					// submitting this data frame
+  type: 'POST',
+  url: get_vars.script_url,																												// the script url the teacher set up
+  data: data,
+  crossDomain: true,
+  timeout: 120000,
+  success:function(response){
+		if(response == "start student"){																							// this is working!
+			ParseGSX.parseGSX(data.question_id,function(result){
+				the_question_sheet = result;
+				show_question(result,0);
+			});
+		} else {																																			// this is not working
+			bootbox.alert(response);																										// hopefully a helpful error message
+		}		
+  }
+})
+.catch(function(error){																														// hopefully this won't happen
+	console.dir(error);																															// this should explain what went wrong
+	bootbox.alert("Error: check the console" + JSON.stringify(error));							// tell the user to check the console
+});
 </script>
