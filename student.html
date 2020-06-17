@@ -1,0 +1,240 @@
+<!--
+		Clasroom Tracking (Dr. Anthony Haffey)
+    A program for student progress in assigned questions
+    Copyright 2020 Anthony Haffey
+
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License version 3 as published by
+    the Free Software Foundation.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>
+ 		
+-->
+<link rel="shortcut icon" href="logo.png" />
+<script src="libraries/jquery-3.5.1.min.js"></script>
+<link rel="stylesheet" href="libraries/bootstrap-4.5.0-dist/css/bootstrapCollector.css">
+<script src="libraries/bootstrap-4.5.0-dist/js/bootstrap.min.js"></script>
+<style>
+.submit_response_btn{
+  width:100%;
+}
+#response_table{
+  position: absolute;
+  top:0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin:auto;
+  width:500;
+  height:500;
+  display:none;
+}
+#start_quiz_btn{
+  position: absolute;
+  top:0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin:auto;
+  width:100;
+  height:50;
+}
+</style>
+<button class="btn btn-primary" id="start_quiz_btn">Start</button>
+<div id="response_table"></div>
+
+
+<!-- Chart code -->
+<script>
+
+//need to get all the relevant variables
+function transformToAssocArray( prmstr ) {
+	var params = {};
+	var prmarr = prmstr.split("&");
+	for ( var i = 0; i < prmarr.length; i++) {
+		var tmparr = prmarr[i].split("=");
+		params[tmparr[0]] = tmparr[1];
+	}
+	return params;
+}
+var prmstr = window.location.search.substr(1);
+get_vars = prmstr != null && prmstr != "" ? transformToAssocArray(prmstr) : {};
+
+
+
+//wrap the below into a tidy object at some point.
+
+var participant_code = makeid(10);
+var question_no      = 0;
+
+
+data = {
+  question_id: get_vars.question_sheet,
+  response_id: get_vars.response_sheet,
+  action:      "start_student",
+  participant_code: participant_code,
+  current_response : ""
+};
+ 
+$.ajax({
+  type: 'POST',
+  url: get_vars.script_url,
+  data: data,
+  crossDomain: true,
+  timeout: 120000,
+  success:function(response){
+    //as it stands, this will never happen as Collector doesn't allow posts to it.
+  }
+})
+.catch(function(error){
+  //read the google sheet
+  ParseGSX.parseGSX(data.question_id,function(result){
+    show_question(result,0);
+  });
+});
+
+
+
+function show_question(result){
+  if(typeof(result[question_no]) == "undefined"){
+    $("#response_table").html("<h1>{{end_message}}</h1>");
+    return;
+  }
+  var this_row         = result[question_no];
+  var question         = this_row.question;
+  var responses        = this_row.responses.split("|");
+  var correct_response = this_row.correct_response;
+  
+  var response_table_html = "<table>" + 
+                              "<tr>" +
+                                "<td><h4>" + question + "</h4><br><br></td>" + 
+                              "</tr>";
+  /*
+  responses.forEach(function(response){
+    response_table_html += "<tr><td><button class='btn btn-primary submit_response_btn'>" + response + "</button></td></tr>";
+  });                  
+  response_table_html += "</table>";
+  */
+  
+  
+  switch(this_row.type){
+    case "choice":
+      responses.forEach(function(response){
+        response_table_html += "<tr><td><button class='btn btn-primary submit_response_btn'>" + response.replace("\n","") + "</button></td></tr>";
+      });
+      break;
+    case "text":
+      response_table_html += "<tr>" +
+                                "<td><input class = 'form-control' type='text' id='single_text_response'></td>" +
+                                "<td><button class='btn btn-primary submit_btn'>Submit</button></td>" +
+                             "</tr>";
+      break;
+      
+  }
+  
+  $("#response_table").show();
+  $("#start_quiz_btn").hide();
+  $("#response_table").html(response_table_html);
+  $(".submit_btn").on("click",function(){
+    question_no++;
+    submit_response($("#single_text_response").val());
+    show_question(result);
+  });
+  $(".submit_response_btn").on("click",function(){
+    data.current_response += this.innerHTML + "; ";
+    if(this_row.answer == "" || this.innerHTML == this_row.answer){
+      question_no++;
+      submit_response(data.current_response);
+      show_question(result);
+      data.current_response = "";
+    } else {
+      bootbox.alert("That is not the correct answer. Please put up your hand to talk to a demonstrator about this question.");
+    }
+  });
+}
+
+function submit_response(response){
+  console.dir(question_no);
+  data = {
+    question_id: "{{question_id}}",
+    response_id: "{{response_id}}",
+    action:      "vote",
+    question_no: question_no,
+    participant_code: participant_code,
+    response: response
+  };
+  $.ajax({
+    type: 'POST',
+    url: "{{script_url}}",
+    data: data,
+    crossDomain: true,
+    timeout: 120000,
+    success:function(result){
+      //as it stands, this will never happen as Collector doesn't allow posts to it.
+    }
+  })
+  .catch(function(error){
+    //read the google sheet 
+    /*
+    ParseGSX.parseGSX(data.question_id,function(result){
+      show_question(result);
+    });
+    */
+  });
+}
+
+
+    
+var ParseGSX = (function() {
+
+  var _defaultCallback = function(data) {
+    console.log(data);
+  };
+
+  var _parseRawData = function(res) {
+    var finalData = [];
+    res.feed.entry.forEach(function(entry){
+      var parsedObject = {};
+      for (var key in entry) {
+        if (key.substring(0,4) === "gsx$") {
+          parsedObject[key.slice(4)] = entry[key]["$t"];
+        }
+      }
+      finalData.push(parsedObject);
+    });
+    var processGSXData = _defaultCallback;
+    processGSXData(finalData);
+  };
+
+  var parseGSX = function(spreadsheetID, callback) {
+    var url = "https://spreadsheets.google.com/feeds/list/" + spreadsheetID + "/od6/public/values?alt=json";
+    var ajax = $.ajax(url);
+    if (callback) { _defaultCallback = callback; }
+    $.when(ajax).then(_parseRawData);
+  };
+
+  return { parseGSX: parseGSX };
+
+})();
+
+
+//based on solution by csharptest.net at https://stackoverflow.com/questions/1349404/generate-random-string-characters-in-javascript
+function makeid(length) {
+   var result           = '';
+   var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmonpqrstuvwxyz1234567890';
+   var charactersLength = characters.length;
+   for ( var i = 0; i < length; i++ ) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+   }
+   return result;
+}
+
+
+</script>
