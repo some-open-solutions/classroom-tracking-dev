@@ -6,83 +6,30 @@ function doPost(e){
   return initiate(e);
 }
 
-
 function initiate(e) {
-  var response = e.parameter;
+  var response = e.parameter;                                                       // e.parameter is basically the student's responses
   
-  var question_sheet_id = response.question_id;
-  var question_sheet    = SpreadsheetApp.openById(question_sheet_id);
-  var question_sheet    = question_sheet.getSheetByName('Sheet1');
   var response_sheet_id = response.response_id;
   var response_sheet    = SpreadsheetApp.openById(response_sheet_id);
   var response_sheet    = response_sheet.getSheetByName('Sheet1');
-  var complete_col = col_no(question_sheet,0,"complete");
   
-  
-  var example_var = 3;
-  
-  if(typeof(complete_col) == "undefined"){
-    complete_col = question_sheet.getDataRange().getValues()[0].length + 1;
-  }
-  
-  /*
-  question_sheet.getRange(1,10).setValue("complete_col = " + complete_col);
-  question_sheet.getRange(1,9).setValue("example_var = " + example_var);
-  */
-  
-  switch(response.action) {
-    case "start":
-      
-      //identify the "complete" column
-      
-      
-      question_sheet.getRange(1, complete_col, question_sheet.getMaxRows(), complete_col).clearContent();
-      question_sheet.getRange(1, complete_col).setValue("complete");
-      
-      response_sheet.getRange(1, 1).setValue("participant_code"); //this can be hard coded
-      response_sheet.getRange(1, 2).setValue("q1_resp"); //this can be hard coded
-      
-      break;
-    case "start_student":
-      
-      //add the student code to the response sheet
-      //work out the last row
-      var new_row  = response_sheet.getLastRow()+1;
-      if(new_row == 1){
-        new_row = 2; //in case a student signs up before the teacher has clicked "start".
+  switch(response.action) {    
+    case "student_start":                                                           // add the student code to the response sheet
+      var new_row  = response_sheet.getLastRow()+1;                                 // work out the last row
+      if(new_row == 1){                                                             // i.e. a blank sheet
+        new_row = 2;                                                                // in case a student signs up before the teacher has clicked "start".
       }
-      response_sheet.getRange(new_row, 1).setValue(response.participant_code); //this can be hard coded
-      
-      
+      response_sheet.getRange(new_row, 1).setValue(response.participant_code);      // put in the code where the above code has identified
+      return valid_return("start student");                                         // if all has gone well, send this message
       break;
-    case "vote":
-      
-      var student_row = rowOfValue(response_sheet,            //looking within this
-                                   response.participant_code, //looking for this
-                                   0);                        //looking in this column
-      var this_col = parseFloat(response.question_no) + 2;
-      response_sheet.getRange(student_row, this_col).setValue(response.response);
-      
-      break;
-    case "next":
-      
-      var quest_no = maxRowOfValue(question_sheet,"yes",complete_col - 1);
-      //count how many "yes"s in the complete column
-      
-      question_sheet.getRange(quest_no + 1, complete_col).setValue("yes");
-      
-      break;
-    case "previous":
-      
-      //count how many "yes"s in the complete column
-      var quest_no = maxRowOfValue(question_sheet,"yes",complete_col - 1);
-      question_sheet.getRange(quest_no , complete_col).setValue("");
-      
-      
-      
-      break;
-    default:
-      // code block
+    case "student_respond":
+      var student_row = rowOfValue(response_sheet,                                  // looking within this
+                                   response.participant_code,                       // looking for this
+                                   0);                                              // looking in this column
+      var this_col = parseFloat(response.question_no) + 1;                          // i.e. the question number the student said they were answering
+      response_sheet.getRange(student_row, this_col).setValue(response.response);   // store the response where we've identified relates to the student and the question
+      return valid_return("student voting");                                        // if all has gone well, send this message
+      break;    
   }  
 }
 
@@ -115,4 +62,8 @@ function rowOfValue(this_sheet,cell_value,column_index){
       return i+1;
     }
   }
+}
+
+function valid_return(content){
+  return ContentService.createTextOutput(content).setMimeType(ContentService.MimeType.JAVASCRIPT); 
 }
