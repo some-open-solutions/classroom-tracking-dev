@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="libraries/bootstrap-4.5.0-dist/css/bootstrapCollector.css">
 <script src="libraries/bootstrap-4.5.0-dist/js/bootstrap.min.js"></script>
 <script src="libraries/bootbox.5.4.min.js"></script>
-
+<script src="browserCheck.js"></script>
 
 <style>
 .submit_response_btn{
@@ -54,14 +54,14 @@
 <div class="text-primary" id="start_message">Please wait while initialising...</div>
 <div id="response_table"></div>
 
-
-<!-- Chart code -->
 <script>
+if(isChrome == false){
+	bootbox.alert("This should work best on google chrome. If you have any problems completing this, please consider switching to Chrome");
+}
 
 //////////////
 //functions //
 //////////////
-
 
 //based on solution by csharptest.net at https://stackoverflow.com/questions/1349404/generate-random-string-characters-in-javascript
 function makeid(length) {
@@ -103,81 +103,87 @@ var ParseGSX = (function() {
 })();
 
 
-function show_question(result){
-  if(typeof(result[question_no]) == "undefined"){
-    $("#response_table").html("<h1>You've finished!</h1>"); //this is a failsafe in case 
-    return;
-  }
-  var this_row         = result[question_no];
-  var question         = this_row.question;
-  var responses        = this_row.responses.split("|");
-  var correct_response = this_row.correct_response;
+function show_question(result){                                                                                         // show the next question
+  if(typeof(result[question_no]) == "undefined"){                                                                       // i.e. you've reached the end
+    $("#response_table").html("<h1>You've finished!</h1>");                                                             // Tell the student it's finished
+    return;                                                                                                             // stop here, the rest of the code is if this isn't the end
+  }                                                                                                                     
+  var this_row         = result[question_no];                                                                           // identify the row based on the question number
+  var question         = this_row.question;                                                                             // this question from this row
+  var responses        = this_row.responses.split("|");                                                                 // split the responses (i.e. if multiple choice)
+  var correct_response = this_row.correct_response;                                                                     // identify the correct response (may not always apply)
+
+  var response_table_html = "<table>" +                                                                                 
+                              "<tr>" +                                                                                  ////////////////////////////////////////////////////// 
+                                "<td><h4>" + question + "</h4><br><br></td>" +                                          // state the question at the top-half of the screen //
+                              "</tr>";                                                                                  //////////////////////////////////////////////////////
+
+  switch(this_row.type){                                                                                                // identify what type of question this is
+    case "choice":                                                                                                      // if it is a (multiple) choice:
+      responses.forEach(function(response){                                                                             // loop through the responses
+        response_table_html += "<tr>" +                                                                                 // create a row for each response
+																	"<td>" +                                                                              // create cell for each row
+																		"<button class='btn btn-primary submit_response_btn'>" +                            // create a button
+																		response.replace("\n","") +                                                         // remove line break if present
+																		"</button>" +                                                                       // close button
+																	"</td>" +                                                                             // close cell
+																"</tr>";                                                                                // close row
+      });                                                                                                               
+      break;                                                                                                            
+    case "text":                                                                                                        // if it is a text input:
+      response_table_html += "<tr>" +                                                                                   // open row
+                                "<td><input class = 'form-control' type='text' id='single_text_response'></td>" +       // cell for the response
+                                "<td><button class='btn btn-primary submit_btn'>Submit</button></td>" +                 // cell for the submit response button
+                             "</tr>";                                                                                   // close row
+      break;                                                                                                            
+  }                                                                                                                     
   
-  var response_table_html = "<table>" + 
-                              "<tr>" +
-                                "<td><h4>" + question + "</h4><br><br></td>" + 
-                              "</tr>";
-  
-  switch(this_row.type){
-    case "choice":
-      responses.forEach(function(response){
-        response_table_html += "<tr><td><button class='btn btn-primary submit_response_btn'>" + response.replace("\n","") + "</button></td></tr>";
-      });
-      break;
-    case "text":
-      response_table_html += "<tr>" +
-                                "<td><input class = 'form-control' type='text' id='single_text_response'></td>" +
-                                "<td><button class='btn btn-primary submit_btn'>Submit</button></td>" +
-                             "</tr>";
-      break;
-  }  
-  
-	$("#response_table").show();
-  $("#start_message").hide();
-  $("#response_table").html(response_table_html);
-  $(".submit_btn").on("click",function(){
-    submit_response($("#single_text_response").val());    
-  });
-  $(".submit_response_btn").on("click",function(){
-		if(typeof(data.current_response) == "undefined"){
-			data.current_response = "";
-		}
-		data.current_response += this.innerHTML + "; ";
-    if(this_row.answer == "" || this.innerHTML == this_row.answer){
-      submit_response(data.current_response);      
-    } else {
-			bootbox.alert("That is not the correct answer. Please put up your hand to talk to a demonstrator about this question.");
-    }
-  });
+  $("#response_table").html(response_table_html);                                                                       // create the table
+	$("#response_table").show();                                                                                          // show the created table
+  $("#start_message").hide();                                                                                           // hide the start message (assuming it's still visible)
+  $(".submit_btn").on("click",function(){                                                                               // activate submit button if present
+    submit_response($("#single_text_response").val());                                                                  // identify what it will submit
+  });                                                                                                                   
+  $(".submit_response_btn").on("click",function(){                                                                      // activate multiple choice buttons if present
+		if(typeof(data.current_response) == "undefined"){                                                                   // if current_response doesn't exist
+			data.current_response = "";                                                                                       // create a blank current_response
+		}                                                                                                                   
+		data.current_response += this.innerHTML + "; ";                                                                     // separate multiple responses
+    if(this_row.answer == "" || this.innerHTML == this_row.answer){                                                     // if correct or a question without a correct answer
+      submit_response(data.current_response);                                                                           // submit
+    } else {                                                                                                            // otherwise
+			bootbox.alert("That is not the correct answer. Please ask a demonstrator for help with this question.");          // they made a mistake
+    }                                                                                                                    
+  });                                                                                                                    
 }
 
-function submit_response(response){
-	question_no++;
-  console.dir(response);
-  var submit_data = {
-    question_id: 			get_vars.question_sheet,
-    response_id: 			get_vars.response_sheet,
-    action:      			"student_respond",
-    question_no: 			question_no,
-    participant_code: participant_code,
-    response: 				response
-  };
-  $.ajax({
-    type: 'POST',
-    url: get_vars.script_url,
-    data: submit_data,
-    crossDomain: true,
-    timeout: 120000,
-    success:function(result){			
-			show_question(the_question_sheet);
-      data.current_response = "";
-    }
-  })
-  .catch(function(error){
-		bootbox.alert("Error, check the console (or let the teacher know");
-		console.dir(error);    
-  });
-}
+function submit_response(response){                                          																						// when submitting a (correct) response
+	question_no++;                                                             																						// move onto the next question
+	show_question(the_question_sheet);                                         																						// show the next question
+	data.current_response = "";                                                																						// reset the current_response variable
+  var submit_data = {                                                        																						// create the data object for submitting the response
+    question_id: 			get_vars.question_sheet,                               																						// the question sheet id
+    response_id: 			get_vars.response_sheet,                               																						// the response sheet id
+    action:      			"student_respond",                                     																						// confirming this is the student responding
+    question_no: 			question_no,                                           																						// the question number
+    participant_code: participant_code,                                      																						// the participant code created by the student
+    response: 				response                                               																						// the student's response
+  };                                                                         																						
+  $.ajax({                                                                   																						
+    type: 'POST',                                                            																						
+    url: get_vars.script_url,                                                																						// the script url identified by the teacher
+    data: submit_data,                                                       																						// the data described above
+    crossDomain: true,                                                       																						// to allow a response from the server
+    timeout: 120000,                                                         																						// 2 minute timeout
+    success:function(result){			                                           																						
+			// do nothing                                                          																						
+    }                                                                        																						
+  })                                                                         																						
+  .catch(function(error){                                                    																						// hopefully won't happen
+		bootbox.alert("Error, check the console (or let the teacher know");      																						// but if it does, hopefully the teacher will see this before releasing it to students
+		console.dir(error);                                                      
+  });                                                                        
+}                                                                            
 
 ///////////
 // Start //
@@ -197,38 +203,38 @@ function transformToAssocArray( prmstr ) {
 var prmstr = window.location.search.substr(1);
 get_vars = prmstr != null && prmstr != "" ? transformToAssocArray(prmstr) : {};
 
-var participant_code = makeid(10);																								// create a consistent participant id
-var question_no      = 0;																													// start on question 0
-
-data = {																																					// data for starting the questions
-  question_id: 			get_vars.question_sheet,																			// spreadsheet where the questions are
-  response_id: 			get_vars.response_sheet,																			// spreadsheet where the responses go
-  action:      			"student_start",																							// student is starting
-  participant_code: participant_code,																							// using the earlier generated code
-  current_response: ""																														// I think this is needed to avoid a crash
-};
-
-var the_question_sheet;
- 
-$.ajax({																																					// submitting this data frame
-  type: 'POST',
-  url: get_vars.script_url,																												// the script url the teacher set up
-  data: data,
-  crossDomain: true,
-  timeout: 120000,
-  success:function(response){
-		if(response == "start student"){																							// this is working!
-			ParseGSX.parseGSX(data.question_id,function(result){
-				the_question_sheet = result;
-				show_question(result,0);
-			});
-		} else {																																			// this is not working
-			bootbox.alert(response);																										// hopefully a helpful error message
-		}		
-  }
-})
-.catch(function(error){																														// hopefully this won't happen
-	console.dir(error);																															// this should explain what went wrong
-	bootbox.alert("Error: check the console" + JSON.stringify(error));							// tell the user to check the console
+var participant_code = makeid(10);																																											// create a consistent participant id
+var question_no      = 0;																																																// start on question 0
+																			
+data = {																																																								// data for starting the questions
+  question_id: 			get_vars.question_sheet,																																						// spreadsheet where the questions are
+  response_id: 			get_vars.response_sheet,																																						// spreadsheet where the responses go
+  action:      			"student_start",																																										// student is starting
+  participant_code: participant_code,																																										// using the earlier generated code
+  current_response: ""																																																	// I think this is needed to avoid a crash
+};																			
+																			
+var the_question_sheet;																			
+																			
+$.ajax({																																																								// submitting this data frame
+  type: 'POST',																			
+  url: get_vars.script_url,																																															// the script url the teacher set up
+  data: data,																			
+  crossDomain: true,																			
+  timeout: 120000,																			
+  success:function(response){																			
+		if(response == "start student"){																																										// this is working!
+			ParseGSX.parseGSX(data.question_id,function(result){																			
+				the_question_sheet = result;																			
+				show_question(result,0);																			
+			});																			
+		} else {																																																						// this is not working
+			bootbox.alert(response);																																													// hopefully a helpful error message
+		}																					
+  }																			
+})																			
+.catch(function(error){																																																	// hopefully this won't happen
+	console.dir(error);																																																		// this should explain what went wrong
+	bootbox.alert("Error: check the console" + JSON.stringify(error));																										// tell the user to check the console
 });
 </script>

@@ -21,7 +21,7 @@
 <script src="libraries/jquery-3.5.1.min.js"></script>
 <link rel="stylesheet" href="libraries/bootstrap-4.5.0-dist/css/bootstrapCollector.css">
 <script src="libraries/bootstrap-4.5.0-dist/js/bootstrap.min.js"></script>
-
+<script src="browserCheck.js"></script>
 
 <style>
 #instructions_div{
@@ -36,10 +36,9 @@
 	right:40px;
 }
 </style>
-
 <div class="jumbotron" id="teacher_inputs">
 	<div id="top_right_buttons">
-		<a class="btn btn-primary" href="https://docs.google.com/document/d/e/2PACX-1vTDqePliaERyqsA_byr8oa2ExXA2xClLqK-nkZbFCf5jZkhfiorDr5Y-PNFjJe96OY9STqWkZlethKy/pub" target="_blank">Tutorial</a>
+		<a class="btn btn-primary" href="https://docs.google.com/document/d/1DCZebYIdwmdmkaCJom7-5K6o5caJcPz5G9iIHrYqv50/edit?usp=sharing" target="_blank">Tutorial</a>
 		<a class="btn btn-primary" href="https://collectalk.com/categories/classroom-tracking" target="_blank">Forum</a>
 	</div>
 	
@@ -70,7 +69,7 @@
 	<p>This system allows you to see on a spreadsheet what answers your students are giving in real time as the complete the link you create by filling in the above inputs. </p>
 	<p>To use this with google (i.e. for free and without managing a server), you will need to copy this <a href="google_script.js" target="_blank" id="google_span">google script</a></p>
 	
-	Instructions for using this can be found <a href="https://docs.google.com/document/d/e/2PACX-1vTDqePliaERyqsA_byr8oa2ExXA2xClLqK-nkZbFCf5jZkhfiorDr5Y-PNFjJe96OY9STqWkZlethKy/pub" target="_blank">here</a>.	
+	Instructions for using this can be found <a href="https://docs.google.com/document/d/1DCZebYIdwmdmkaCJom7-5K6o5caJcPz5G9iIHrYqv50/edit?usp=sharing" target="_blank">here</a>.	
 </div>
 
 <script>
@@ -84,9 +83,5 @@ $("#open_student_link").on("click",function(){
 						$("#script_url").val();
 	
 	window.open(url, '_blank');
-	//window.href = 
-	
-	
-	
 });
 </script>
